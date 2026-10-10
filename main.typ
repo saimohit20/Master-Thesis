@@ -82,7 +82,7 @@
 #include "chapters/06-experiments-results.typ"
 #include "chapters/07-discussion.typ"
 #include "chapters/08-conclusion.typ"
-#include "chapters/09-future-work.typ"
+#include "chapters/09-outlook.typ"
 
 // ---------------------------------------------------------------------
 //  Back matter
