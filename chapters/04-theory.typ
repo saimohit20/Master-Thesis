@@ -118,7 +118,8 @@ which describes how weight passes from one node to its neighbours, $e$ is the st
 vector that places weight only on the seed nodes, and $alpha$ is the damping factor,
 which controls how far the walk is allowed to spread before it is pulled back to the
 seeds @page1999. A higher $alpha$ lets relevance travel further across the graph, while
-a lower $alpha$ keeps it concentrated near the original query entities. This restart
+a lower $alpha$ keeps it concentrated near the original query entities, so that the choice
+of damping directly shapes the resulting ranking @bressan2010. This restart
 mechanism is what lets PPR reach chunks that are several relations away from a seed
 entity, a case that plain entity hop tends to miss @gutierrez2024.
 
@@ -312,7 +313,8 @@ $ "Faithfulness" = ("claims in the answer supported by the context") / ("total c
 
 This is effectively a hallucination check applied directly to generation. A faithful
 answer sticks to what the retrieved passages actually say, even if that happens to be
-incomplete.
+incomplete. Answers that drift from the retrieved context in this way are known as context
+faithfulness hallucinations @huang2025.
 
 Answer relevancy checks whether the answer addresses the question that was asked,
 independent of whether it is faithful to the context. This is measured indirectly. The
@@ -395,8 +397,10 @@ identifies the learning objective and current knowledge level of the user throug
 short dialogue of follow-up questions, and then recommends training content suited to
 that level.
 
-The guided assistant mode is implemented as a multi-agent system, coordinated with the
-AutoGen framework, with GPT-4o as the underlying language model served through Azure.
+The guided assistant mode is implemented as a multi-agent system @singh2025, coordinated with the
+AutoGen framework, with GPT-4o as the underlying language model served through Azure. Dividing the
+retrieval workflow across cooperating agents in this way follows recent work on agentic and
+multi-agent RAG @salemi2025.
 Three agents divide the work. A Topic Agent determines what the user wants to learn from
 their responses. A Knowledge Agent classifies the expertise of the user into one of
 three levels, beginner, advanced or expert, through didactic follow-up questions. A

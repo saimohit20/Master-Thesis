@@ -104,30 +104,89 @@ better than vector alone. For a pipeline that passes its pool to a reranker, thi
 worth keeping. It widens what the reranker can choose from and leaves the parts that already work
 alone.
 
-== Generation Results
+=== Reranker Ablation
 
-Generation is scored with the four RAGAS measures introduced in the methodology. @fig-ragas reports
-them for the hybrid leg on Grownfield.
-// CONFIRM: that this figure uses the Grownfield expert questions, and add the other legs and datasets if you have them.
+The reranker is one of the most expensive components of the query time flow. To see what it
+adds, the Grownfield questions were run three times, once without a reranker, once with
+bge-reranker-base and once with bge-reranker-v2-m3. Only the reranker changed between the runs.
+The graph engine, the fusion and the language model stayed the same. All times were measured on
+a CPU, with one run per configuration.
+
+==== Time per Question
+
+@fig-latency-components splits the time per question for the v2-m3 configuration into its
+components. The vector leg takes 2.3 s, the graph leg 5.0 s and the generation 6.3 s. The
+reranker takes 15.3 s, which is more than half of the total of 28.9 s. It is the largest single
+cost of the pipeline.
 
 #figure(
-  image("../figures/ragas-generation-grownfield.png", width: 75%),
-  caption: [RAGAS generation quality of the hybrid leg on Grownfield.],
-) <fig-ragas>
+  image("../figures/latency-components.png", width: 70%),
+  caption: [Mean time per question by component with bge-reranker-v2-m3.],
+) <fig-latency-components>
 
-The two measures that judge the answer are high. Faithfulness is 0.917, so about nine in ten
-claims of the generated answers are supported by the retrieved context, and answer relevancy is
-0.927, so the answers stay on the question that was asked. The two measures that judge the context
-are lower. Context precision is 0.876, which means that most retrieved passages are relevant and
-that they appear near the top. Context recall is the lowest at 0.792, which means that in about one
-fifth of the claims of the reference answers, the retrieved context did not hold the information
-that was needed. This points to retrieval as the main remaining limit and not to the generator.
+@tab-reranker-time compares the three configurations. Without a reranker a question takes about
+13.4 s. The base reranker adds about 4.4 s, which is a third more. The v2-m3 reranker adds about
+15.5 s and more than doubles the time.
+
+#figure(
+  thesis-table(
+    columns: (auto, auto, auto),
+    align: (left, right, right),
+    header: ([Configuration], [Time per question (s)], [Extra time (s)]),
+    [No reranker], [13.4], [-],
+    [bge-reranker-base], [17.8], [+4.4],
+    [bge-reranker-v2-m3], [28.9], [+15.5],
+  ),
+  kind: table,
+  caption: [Mean time per question for the three reranker configurations.],
+) <tab-reranker-time>
+
+==== Retrieval Quality
+
+@fig-reranker-retrieval shows that the reranker does not change retrieval much. MRR stays at
+0.73 to 0.74 for all three configurations. Hit\@3 rises from 0.76 to 0.79 with the base reranker
+and is 0.76 again with v2-m3. Hit\@1 is 0.66 without a reranker and with the base reranker, and
+falls to 0.62 with v2-m3. With 29 questions, one question is worth about 0.03, so each of these
+differences is a single question. They are too small to say that one configuration retrieves
+better than another.
+
+#figure(
+  image("../figures/reranker-retrieval.png", width: 80%),
+  caption: [Retrieval quality by reranker, measured with MRR, Hit\@1 and Hit\@3.],
+) <fig-reranker-retrieval>
+
+==== Answer Quality
+
+@fig-reranker-ragas gives the four RAGAS measures for the hybrid leg. Context precision shows the
+clearest change. It rises from 0.77 without a reranker to 0.83 with the base reranker and to 0.90
+with v2-m3. The other measures change very little. Faithfulness is 0.87, 0.92 and 0.91, answer
+relevancy is 0.91, 0.88 and 0.90, and context recall is 0.80, 0.83 and 0.82. The reranker
+therefore places the relevant chunks higher in the list, but the answers themselves hardly
+improve.
+
+#figure(
+  image("../figures/reranker-ragas.png", width: 90%),
+  caption: [RAGAS generation quality by reranker for the hybrid leg.],
+) <fig-reranker-ragas>
+
+==== Quality against Time
+
+@fig-reranker-scatter puts answer quality, the average of faithfulness and answer relevancy,
+against the time per question. The average is 0.894 without a reranker, 0.900 with the base
+reranker and 0.904 with v2-m3. The gain is 0.006 and 0.011, while the time grows by 4.4 s and
+15.5 s. Answer quality is almost flat, and the time per question is not. This is why the
+reranker was switched off in the final system.
+
+#figure(
+  image("../figures/reranker-scatter.png", width: 75%),
+  caption: [Answer quality against time per question for the three reranker configurations.],
+) <fig-reranker-scatter>
 
 === AVAILABLE 1.0 vs AVAILABLE 2.0
 
 The last comparison sets the baseline against the final system. AVAILABLE 1.0 ran a single vector
-retrieval pipeline, so it is compared with the hybrid setting of AVAILABLE 2.0, including fusion
-and reranking. The comparison is shown for each dataset in turn.
+retrieval pipeline, so it is compared with the hybrid setting of AVAILABLE 2.0, with fusion but
+without the reranker, matching the final system. The comparison is shown for each dataset in turn.
 
 On Grownfield, the multi document reasoning set, the gain is large at every cutoff
 (@fig-ret-grownfield). Hit\@1 rises from 0.39 to 0.66, so the correct document now leads the
@@ -175,10 +234,31 @@ second version achieves but not how much each change contributed.
 
 == Generation Results
 
-Generation is scored with the four RAGAS measures introduced in the methodology. Two of them judge
-the answer, which are faithfulness and answer relevancy, and two judge the retrieved context, which
-are context precision and context recall. The language model that writes the answer is the same in
-both versions, so any difference comes from the context that it receives.
+Generation is scored with the four RAGAS measures introduced in the methodology. @fig-ragas reports
+them for the hybrid leg on Grownfield.
+// CONFIRM: that this figure uses the Grownfield expert questions, and add the other legs and datasets if you have them.
+
+#figure(
+  image("../figures/ragas-generation-grownfield.png", width: 75%),
+  caption: [RAGAS generation quality of the hybrid leg on Grownfield.],
+) <fig-ragas>
+
+The two measures that judge the answer are high. Faithfulness is 0.917, so about nine in ten
+claims of the generated answers are supported by the retrieved context, and answer relevancy is
+0.927, so the answers stay on the question that was asked. The two measures that judge the context
+are lower. Context precision is 0.876, which means that most retrieved passages are relevant and
+that they appear near the top. Context recall is the lowest at 0.792, which means that in about one
+fifth of the claims of the reference answers, the retrieved context did not hold the information
+that was needed. This points to retrieval as the main remaining limit and not to the generator. The
+standalone scores in @fig-ragas use the original Grownfield question set, while the AVAILABLE 1.0
+versus 2.0 comparison below was run after the Grownfield team added a few further questions, which is
+why the AVAILABLE 2.0 values differ between the two figures.
+
+=== AVAILABLE 1.0 vs AVAILABLE 2.0
+
+This comparison sets AVAILABLE 1.0 against AVAILABLE 2.0 on the same four RAGAS measures. The
+language model that writes the answer is the same in both versions, so any difference comes from the
+context that it receives.
 
 On Grownfield, the context measures improve the most (@fig-gen-grownfield). Context precision rises
 from 0.36 to 0.77 and context recall from 0.52 to 0.80. This follows from the retrieval changes.

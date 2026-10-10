@@ -1,3 +1,5 @@
+#import "../thesis.typ": thesis-table
+
 = Methodology
 
 == System Overview and Architecture
@@ -41,26 +43,23 @@ AVAILABLE 2.0 that addresses it.
 // TODO: add the source of the team feedback (meeting, interviews or document) and cite it.
 
 #figure(
-  [
-    #set text(size: 10pt)
-    #table(
-      columns: (1.1fr, 1.2fr, 1.5fr),
-      align: left + top,
-      inset: 6pt,
-      [*Topic*], [*AVAILABLE 1.0*], [*AVAILABLE 2.0*],
-      [Document intake], [Added manually by the development team],
-        [Collected automatically from SharePoint sites],
-      [Retrieval], [Semantic search in a FAISS index],
-        [Hybrid search over a vector store and a knowledge graph],
-      [Ranking], [Order by vector similarity],
-        [Cross-encoder reranking with a trust boost],
-      [Document trust], [Optional manual rating per folder],
-        [Automated trust score for every document],
-      [Monitoring], [Not available], [Tracing of every step with Opik],
-      [Evaluation], [No systematic procedure],
-        [Evaluation harness with retrieval and generation metrics],
-    )
-  ],
+  thesis-table(
+    columns: (1.1fr, 1.2fr, 1.5fr),
+    align: left + top,
+    header: ([Topic], [AVAILABLE 1.0], [AVAILABLE 2.0]),
+    [Document intake], [Added manually by the development team],
+      [Collected automatically from SharePoint sites],
+    [Retrieval], [Semantic search in a FAISS index],
+      [Hybrid search over a vector store and a knowledge graph],
+    [Ranking], [Order by vector similarity],
+      [Fused list of both legs, with an optional cross-encoder reranker and trust boost],
+    [Document trust], [Optional manual rating per folder],
+      [Automated trust score for every document],
+    [Monitoring], [Not available], [Tracing of every step with Opik],
+    [Evaluation], [No systematic procedure],
+      [Evaluation harness with retrieval and generation metrics],
+  ),
+  kind: table,
   caption: [Comparison of AVAILABLE 1.0 and AVAILABLE 2.0.],
 ) <tab-overview>
 
@@ -87,11 +86,14 @@ document metadata and supporting evidence, and it replaces the manual rating.
 
 The retrieval and generation pipeline handles a question at query time. The question is
 searched against the vector store and the knowledge graph in parallel, and the two
-result lists are merged by union into one candidate pool. A cross-encoder reranker then
-scores this pool more precisely, and the trust score of each document is applied at this
-step as a boost. More trustworthy documents move higher in the ranking, while less
-trustworthy ones are not removed from the pool. The top passages are passed to the LLM,
-which generates the final answer. The pipeline can run in vector, graph or hybrid mode,
+result lists are merged by union into one candidate pool. An optional cross-encoder reranker
+can score this pool more precisely, and when it is active the trust score of each document
+is applied as a boost at this step. More trustworthy documents then move higher in the
+ranking, while less trustworthy ones are not removed from the pool. In the final system the
+reranker is switched off, for reasons given in the section on reranking, and the fused list
+goes to the LLM directly. In both cases about ten passages are passed to the LLM, which
+generates the final answer. The trust score of each document is also written next to its
+passage in the prompt, independent of the reranker. The pipeline can run in vector, graph or hybrid mode,
 which makes it possible to compare the retrieval approaches under identical conditions.
 // CONFIRM: the Vector / Graph / Hybrid box in the figure is described here as retrieval modes.
 
@@ -125,29 +127,31 @@ system. The distribution of documents across topics is shown in @tab-corpus-topi
 the distribution across file formats is shown in @tab-corpus-formats.
 
 #figure(
-  table(
+  thesis-table(
     columns: (2fr, 1fr),
     align: (left, right),
-    [*Topic*], [*Documents*],
+    header: ([Topic], [Documents]),
     [Grownfield], [TODO],
     [Digital Transformation], [TODO],
     [Hydraulics], [TODO],
     [*Total*], [*247*],
   ),
+  kind: table,
   caption: [Distribution of the corpus across topics.],
 ) <tab-corpus-topics>
 // TODO: fill the numbers and add the difficulty level columns from your Table 3.
 
 #figure(
-  table(
+  thesis-table(
     columns: (2fr, 1fr),
     align: (left, right),
-    [*File format*], [*Documents*],
+    header: ([File format], [Documents]),
     [PowerPoint], [TODO],
     [PDF], [TODO],
     [Video], [TODO],
     [Other], [TODO],
   ),
+  kind: table,
   caption: [Distribution of the corpus across file formats.],
 ) <tab-corpus-formats>
 // TODO: fill the numbers from your Table 4.
@@ -155,10 +159,11 @@ the distribution across file formats is shown in @tab-corpus-formats.
 === Data Processing
 
 The data preparation follows a medallion architecture#footnote[The medallion architecture
-is a data design pattern from the data lakehouse paradigm, in which data is refined
-across successive bronze, silver and gold layers of increasing quality and structure.],
+is a data design pattern from the data lakehouse paradigm, popularised by Databricks, in which
+data is refined across successive bronze, silver and gold layers of increasing quality and
+structure. See #link("https://docs.databricks.com/aws/en/lakehouse/medallion").],
 a staged design in which raw input is refined through successive layers of increasing
-structure #text(fill: red)[\[CITE: Databricks medallion architecture\]]. Three layers are
+structure. Three layers are
 used in this work. The Bronze layer gathers the raw files from SharePoint and keeps a
 local copy synchronised with the source. The Silver layer reads each file and turns its
 content into uniform, structured records in one common representation. The Gold layer
@@ -247,8 +252,7 @@ first converted into a paged document, so that slides and PDF pages can be treat
 the same way. Each page is then read on two levels. Its written text is taken directly
 from the page, and the page is also rendered as an image and passed to GPT-4o, which
 describes the visual content that plain text cannot capture, such as diagrams,
-screenshots and figures #text(fill: red)[\[CITE: multimodal / visual document
-understanding\]]. The pages are read in sequence, and the summary of the earlier pages is
+screenshots and figures @fu2025. The pages are read in sequence, and the summary of the earlier pages is
 given to the model as context for the next one, so that the description of a deck stays
 consistent from page to page.
 
@@ -278,9 +282,10 @@ constrained to return a fixed JSON structure with a short title and a descriptio
 content, and this is the step that turns unstructured material into structured records.
 The instruction also asks for the output in English, which has the useful effect of
 normalising the German and the English material into one language
-#text(fill: red)[\[CITE: cross-lingual retrieval\]]. The full prompts are given in the
+@goworek2025. The full prompts are given in the
 appendix. The model is called with deterministic settings, so that the output is as
-reproducible as possible.
+reproducible as possible, since the sampling temperature directly affects how stable the
+generated output is across runs @renze2024.
 
 Every record is stored together with a set of metadata, which is a small structured
 description that sits alongside the text of the record. Its purpose is to let the later
@@ -381,8 +386,8 @@ they reach the model.
 This section describes how each chunk is turned into a vector and kept in a vector
 database. It then looks at how the two eyes search, the vector eye on its own and the
 graph eye on its own, and how their two views are joined into one through a fusion step.
-It ends with the reranker, which puts the final chunks in the best order before they
-reach the model.
+It ends with the reranker, an optional stage that can reorder the chunks before they
+reach the model, and with the query time latency of the whole flow.
 
 === Embedding
 
@@ -421,20 +426,17 @@ lost to longer ones that contribute many more chunks. @tab-representation summar
 change from the baseline.
 
 #figure(
-  [
-    #set text(size: 10pt)
-    #table(
-      columns: (1.2fr, 1.4fr, 1.6fr),
-      align: left + top,
-      inset: 6pt,
-      [*Aspect*], [*Baseline*], [*AVAILABLE 2.0*],
-      [Embedding model], [BAAI/bge-small-en-v1.5], [BGE-M3],
-      [Language coverage], [English only], [Multilingual, German and English],
-      [Vectors per chunk], [One dense vector], [One dense and one sparse vector],
-      [Exact code matching], [Blurred by the dense vector], [Handled by the sparse vector],
-      [Vector store], [FAISS, a file loaded into memory], [Qdrant, a database service on disk],
-    )
-  ],
+  thesis-table(
+    columns: (1.2fr, 1.4fr, 1.6fr),
+    align: left + top,
+    header: ([Aspect], [Baseline], [AVAILABLE 2.0]),
+    [Embedding model], [BAAI/bge-small-en-v1.5], [BGE-M3],
+    [Language coverage], [English only], [Multilingual, German and English],
+    [Vectors per chunk], [One dense vector], [One dense and one sparse vector],
+    [Exact code matching], [Blurred by the dense vector], [Handled by the sparse vector],
+    [Vector store], [FAISS, a file loaded into memory], [Qdrant, a database service on disk],
+  ),
+  kind: table,
   caption: [Baseline and enhanced retrieval representation.],
 ) <tab-representation>
 
@@ -775,22 +777,27 @@ list as $V = (v_1, v_2, dots)$ and the graph list as $G = (g_1, g_2, dots)$, the
 
 $ "pool" = "dedup"(v_1, g_1, v_2, g_2, v_3, g_3, dots) $
 
-where $"dedup"$ keeps the first appearance of each chunk. No score is attached yet. This
-order only decides which chunks make the shortlist, and the reranker sets the real order
-next.
+where $"dedup"$ keeps the first appearance of each chunk. No score is attached yet. How many
+chunks each leg contributes depends on whether the reranker is active. With the reranker, each
+leg returns its top ten chunks, so the pool holds up to twenty chunks and the reranker chooses
+the final ten. Without the reranker, each leg contributes its top five chunks, and the first
+ten chunks of the fused list go to the model, fewer if both legs return the same chunk. In
+both cases the model sees about ten chunks, so the two settings are comparable.
 
 ==== Reranking
 
-The shortlisted chunks are re-scored by a cross-encoder model
-#text(fill: red)[\[CITE: BAAI/bge-reranker-v2-m3\]]. The first stage of retrieval embeds the
+The system includes an optional reranking stage. When it is active, the pooled chunks are
+re-scored by a cross-encoder model#footnote[The reranker is BAAI/bge-reranker-v2-m3, a multilingual
+cross-encoder with about 568 million parameters, fine-tuned from BGE-M3. See
+#link("https://huggingface.co/BAAI/bge-reranker-v2-m3").]. The first stage of retrieval embeds the
 question and each passage separately, which is fast but only rough. The cross-encoder reads
 the question and one chunk together and judges how well that chunk answers the question
 @nogueira2019. This is much more precise, and it is affordable because it runs only over the
 small pool and not over the whole corpus.
 
-The last part folds in trust and cuts the list. Each reranked score is adjusted by the trust
-of the document a passage comes from, as described in the trust scoring section, so that
-chunks from more trustworthy documents move up,
+When the reranker is active, it also carries the trust boost. Each reranked score is adjusted
+by the trust of the document a passage comes from, as described in the trust scoring section,
+so that chunks from more trustworthy documents move up,
 
 $ "final" = "rerank" dot.op (1 + beta_t dot.op "trust") $
 
@@ -799,6 +806,34 @@ chunks are kept and sent to the generation step, and the unique documents behind
 shown to the user as recommended reading. The two eye combination and the cross-encoder are
 both new to this work. The baseline used a single vector leg, with no fusion and no
 reranking.
+
+Two reranker models were considered, bge-reranker-base and bge-reranker-v2-m3, and both were
+compared against running without a reranker (see the evaluation methodology). The reranker was
+finally switched off. It added a large share of the query time, while the quality of the
+answers hardly changed. The reranker stays in the code as a configuration option. Two
+consequences follow. The trust boost on the ranking only acts when the reranker is active, since
+the boost is applied to the reranker score. The trust tag in the prompt does not depend on the
+reranker and stays active in both settings.
+
+=== Query Time Latency
+
+The retrieval described so far runs for every question a user asks, so the time it needs
+directly affects how the assistant feels in use. In the first tests the time per question is
+high, and the reranker is one of the expensive components of the pipeline. This subsection
+describes how the time is measured. The reranker itself is treated in the evaluation
+methodology as an ablation.
+
+==== Measuring Latency
+
+Each question is timed from the start of retrieval to the end of the written answer. A small
+Python timing script wraps the vector leg, the graph leg, the reranker and the generation step,
+and records the elapsed time of each with a high resolution clock. Opik tracing is switched off
+during these measurements, since its spans add a small overhead of their own. The first question
+after a restart is excluded as a warm-up, because it pays the one-time cost of loading the
+models and the graph. All models run on the CPU, so the times describe this setup only, and a
+GPU would shorten the neural steps. The measured times are reported in the results chapter.
+// CONFIRM: the sentence "timed from the start of retrieval to the end of the written answer" assumes the reported time per question includes the LLM answer. Change it if it is retrieval only.
+
 
 == Trust Scoring Implementation
 
@@ -933,15 +968,113 @@ weight of only 0.3 in the final blend, while the prior holds 0.7, so that corrob
 nudge a score but never override the measured quality of a document. A document that never
 entered the graph keeps its prior.
 
+=== Guidelines for Trustworthy Documents
+
+The trust score is only useful if the teams that write training material know what it rewards.
+For this reason the score is translated into a short set of writing guidelines. They follow
+directly from the way the score is built. The score does not check whether the information in
+a document is factually right. It estimates how reliable a document is from its content
+quality, its metadata and how well it aligns with the rest of the knowledge base. A document
+that follows the guidelines therefore has a higher chance of earning a good score.
+
+Because the prior carries a weight of 0.7 and the support score a weight of 0.3, the share of
+each part in the final score follows from the weights of the pillars. The content pillar
+contributes $0.7 dot.op 0.45 = 31.5%$, the three metadata pillars contribute
+$0.7 dot.op (0.25 + 0.15 + 0.15) = 38.5%$, and the support score contributes 30%.
+@tab-guidelines lists the three parts and what each of them rewards.
+
+#figure(
+  thesis-table(
+    columns: (1fr, 0.7fr, 3fr),
+    align: left + top,
+    header: ([Part], [Share], [What it rewards]),
+    [Content], [31.5%],
+      [Specific details such as transaction codes, table names, program names, fields and
+      item types. A complete procedure with prerequisites, steps and outcome. Actionable
+      steps that say what to enter or click and why. A focused document with one task or
+      topic, free of filler and of descriptions of slide visuals.],
+    [Metadata], [38.5%],
+      [A known and authorised author and no blank or unknown author. A recent last
+      modified date, kept current by reviewing and saving the document regularly. A
+      structured, text based format, preferred over image only slides, so that the content
+      is machine readable.],
+    [Support], [30%],
+      [Standard and consistent terminology, so that the document links into the shared
+      knowledge graph. Facts that agree with other trusted documents. A document that
+      shares its key facts with the wider corpus and does not stand in isolation.],
+  ),
+  kind: table,
+  caption: [Writing guidelines derived from the three parts of the trust score and their share of the final score.],
+) <tab-guidelines>
+
+The guidelines for the support score deserve a note. Using the same codes and names as other
+official documents is what connects a document to the others through shared entities, and
+without such connections it keeps only its prior. Agreement with trusted documents raises the
+score, but as discussed above, agreement is only a proxy for correctness. The guidelines
+therefore ask authors to stay consistent with authoritative sources, and they do not ask them
+to copy the majority.
+// CONFIRM: your draft sentence on the support rule was cut off after "earn corroboration". I assumed that contradictory facts earn none.
+
 === Use at Query Time
 
 The whole trust score is computed once, when a document is ingested, and it is stored in the
-metadata of the document. At query time it is read back during the reranking step, where the
+metadata of the document. At query time it is read back and used in two ways. First, each
+passage is tagged with the trust value of its document in the prompt, so the language model can
+see which source to follow when two passages disagree. Second, when the reranker is active, the
 score of each passage is multiplied by $(1 + beta_t dot.op "trust")$, so that passages from
-more trusted documents rise in the final order. How the trust score is tested, and whether it
+more trusted documents rise in the final order. In the final system the reranker is off, so
+only the prompt tag is active. How the trust score is tested, and whether it
 behaves as intended, is covered in the evaluation chapter.
 
-== Evaluation
+== Observability
+
+A RAG pipeline handles both retrieval and generation. It fetches the relevant documents and
+then answers the question. Along the way it searches the vector store, walks the graph, fuses
+and reranks the candidates, folds in trust, and finally calls the language model. When an
+answer comes out wrong, the cause can lie in any one of these steps, and reading the final
+answer alone does not reveal which one failed. The pipeline therefore has to be monitored, so
+that each request can be opened up and inspected after it runs. Scattering manual log
+statements through the code is one way to do this, but it is slow to write and painful to
+debug when something breaks. A dedicated tracing tool was used instead, which helps not only
+with monitoring but also with later improvements.
+
+Several tools offer this kind of tracing, and Opik was chosen because it is open source and
+can be run on the own infrastructure of the project. This keeps the traces and their data
+inside the same environment as the rest of the system and does not send them to an outside
+service, which matters for enterprise material that should not leave the local setup. The
+application talks to Opik as a client and sends everything it records to a local server,
+where it is viewed in a dashboard. A small set of environment variables points the client at
+the server, names the project under which all traces are grouped, and sets the workspace.
+
+The three levels of recording introduced in the theory chapter map directly onto the way the
+system is used. A span is one function call of the pipeline, a trace is one question from
+entry to answer, and a thread is one session. A person usually asks several questions in one
+sitting, and each question runs the whole pipeline once, so every question becomes one trace
+and the traces of one conversation are grouped into one thread.
+
+The recording is done with a decorator. Placing it above a function tells Opik to capture
+that function as a span each time it runs, taking its inputs before it executes and its
+result and timing after. When one decorated function calls another, the inner span is nested
+inside the outer one, so the shape of the pipeline is rebuilt as a tree without any manual
+bookkeeping. The top of the tree is the whole request, recorded as `rag_pipeline`, and
+beneath it sit the retrieval and generation steps. Retrieval opens its own nested spans for
+the vector search, the graph traversal, the fusion and its union, the reranker and the
+recommended documents, so that the path of a question through the two legs is visible step
+by step.
+
+Where the automatic capture is not enough, two calls add more detail. One attaches step level
+detail to the current span, such as how many chunks each leg returned, together with the
+token usage and the estimated cost of a model call. The other attaches request level detail
+to the current trace, such as the final answer and the session identifier. The session
+identifier is a single value that is created once when a session opens and reused for every
+question in it, which is what files the separate traces under one conversation.
+
+Observability was not part of the baseline, which offered no way to trace or measure the
+pipeline. Adding it makes both the behaviour and the cost of each request transparent. This
+visibility is what allowed the retrieval approaches and the trust score to be understood and
+debugged while they were being built.
+
+== Evaluation Methodology
 
 The previous sections set out how the system works, from retrieving chunks and writing an
 answer to scoring how much each document can be trusted. Those sections explain what was
@@ -966,12 +1099,12 @@ Hydraulics. To test the system against real needs, the teams behind these topics
 for questions that their own users would ask, each paired with the correct answer and the
 document it should come from. The Digital Transformation team was not available during the
 period of this thesis, so expert questions could be collected only for the other two topics.
-The Grownfield team contributed 40 questions across the SAP modules, a mix of single document
+The Grownfield team contributed 29 questions across the SAP modules, a mix of single document
 and multi document cases, and the Hydraulics team contributed 59 questions drawn from its
 training handbook. Every question carries a ground truth answer and a golden source document,
 which is what allows both retrieval and generation to be scored against a known target.
 
-These expert sets are trustworthy, but they are small. Ninety nine questions in total, with
+These expert sets are trustworthy, but they are small. Eighty eight questions in total, with
 none at all for Digital Transformation, are too few to tell reliably whether the system works
 well or badly, and too few to break the results down by topic, question type or retrieval
 approach. A larger and more balanced set was needed before any real conclusion could be
@@ -990,16 +1123,16 @@ times the size of the expert sets, spread evenly across the five question types.
 summarises both sources.
 
 #figure(
-  table(
+  thesis-table(
     columns: (1.4fr, 1fr, 1fr, 1.2fr),
     align: (left, left, right, left),
-    inset: 6pt,
-    [*Source*], [*Topic*], [*Questions*], [*Ground truth*],
-    [Expert], [Grownfield], [40], [Written by experts],
+    header: ([Source], [Topic], [Questions], [Ground truth]),
+    [Expert], [Grownfield], [29], [Written by experts],
     [Expert], [Hydraulics], [59], [Written by experts],
     [Expert], [Digital Transformation], [0], [Not available],
     [Synthetic], [All three topics], [1215], [Generated by a language model],
   ),
+  kind: table,
   caption: [Overview of the two evaluation datasets.],
 ) <tab-datasets>
 // TODO: add the synthetic question count per topic if you want a finer breakdown.
@@ -1037,7 +1170,11 @@ with anything else. Three engines are tested on the same seeds, so that only the
 differs and the comparison stays fair. The entity hop takes a single step from the concepts of
 the query to the chunks that mention them. The multi entity hop repeats that step over several
 hops and reaches further across the graph. Personalized PageRank lets weight flow through the
-whole graph at once. Each engine is scored on the same questions. Because the graph leg feeds a reranker, which can reorder candidates but cannot recover a document that was never retrieved, the engine that reaches the most golden documents is fixed as the graph engine for the rest of the evaluation, and ranking quality at the top is a secondary criterion.
+whole graph at once. Each engine is scored on the same questions. Because the graph leg adds
+candidates to a pool that a reranker can reorder but not extend, and a document that was never
+retrieved cannot be recovered later, the engine that reaches the most golden documents is fixed
+as the graph engine for the rest of the evaluation, and ranking quality at the top is a
+secondary criterion.
 
 The second stage compares the retrieval legs. With the graph engine fixed, the three legs are
 compared under the same conditions. The vector leg retrieves by wording, the graph leg by
@@ -1048,8 +1185,18 @@ AVAILABLE 2.0.
 
 The third stage compares the two versions of the system on the same questions. AVAILABLE 1.0
 retrieves with vector search alone, while AVAILABLE 2.0 uses the retrieval setup chosen in the
-previous stage together with fusion and reranking. This final test shows what the changes of
-the second version achieve for retrieval as a whole.
+previous stage together with fusion. This comparison is run without the reranker, so that the
+gain can be traced to the embedding model, the hybrid search and the graph union and not to
+reranking. It shows what the changes of the second version achieve for retrieval as a whole.
+
+Besides these three stages, a separate reranker ablation measures what the reranking stage
+adds. Three configurations are run on the Grownfield questions, with no reranker, with
+bge-reranker-base and with bge-reranker-v2-m3. Everything else stays fixed. Each configuration
+is scored on retrieval quality with Hit\@k and mean reciprocal rank, on answer quality with the
+RAGAS measures described in the next section, and on the time per question, measured as
+described in the latency section. The answer quality in this ablation is summarised as the
+average of faithfulness and answer relevancy. The ablation decides whether the extra time of a
+reranker is worth the gain, and its outcome led to the reranker being switched off.
 
 === Generator Evaluation
 
@@ -1103,20 +1250,17 @@ ways. Every copy carries a single kind of damage that is aimed at a single pilla
 in @tab-attacks.
 
 #figure(
-  [
-    #set text(size: 10pt)
-    #table(
-      columns: (1fr, 1fr, 2fr),
-      align: left + top,
-      inset: 6pt,
-      [*Damage*], [*Pillar*], [*What it does*],
-      [Procedural], [Content], [Removes most of the steps of a procedure, so the process is left incomplete],
-      [Technical], [Content], [Strips out SAP specifics such as transaction codes and table names, so the technical depth is lost],
-      [Filler], [Content], [Injects off topic text, so the document loses its focus],
-      [Authority], [Authority], [Changes the author to an unknown one],
-      [Freshness], [Freshness], [Backdates the document by four years],
-    )
-  ],
+  thesis-table(
+    columns: (1fr, 1fr, 2fr),
+    align: left + top,
+    header: ([Damage], [Pillar], [What it does]),
+    [Procedural], [Content], [Removes most of the steps of a procedure, so the process is left incomplete],
+    [Technical], [Content], [Strips out SAP specifics such as transaction codes and table names, so the technical depth is lost],
+    [Filler], [Content], [Injects off topic text, so the document loses its focus],
+    [Authority], [Authority], [Changes the author to an unknown one],
+    [Freshness], [Freshness], [Backdates the document by four years],
+  ),
+  kind: table,
   caption: [The five kinds of damage used in the first experiment.],
 ) <tab-attacks>
 
@@ -1153,7 +1297,8 @@ the twin, which gives 190 questions.
 
 All 40 documents were indexed in the vector store, and each twin was placed into the real
 Grownfield graph, so that its support score could be computed by the same walk that is used in
-retrieval. Trust then enters the RAG in two places. It reweights the ranking after reranking by
+retrieval. This experiment runs with the reranker active, since the ranking boost acts on the
+reranker score. Trust then enters the RAG in two places. It reweights the ranking after reranking by
 the factor $(1 + beta_t dot.op "trust")$, as described in the retrieval implementation, and each
 retrieved chunk is also tagged with its trust value in the prompt, so that the model knows which
 source to follow when two conflict.
@@ -1173,101 +1318,3 @@ the known correct value. This decides which grader can be trusted for the final 
 avoids assuming that any single grader is reliable on its own. The two experiments test both
 sides of the claim. The first shows that the score reflects real quality, and the second shows
 that it improves the answers.
-
-== Observability
-
-A RAG pipeline handles both retrieval and generation. It fetches the relevant documents and
-then answers the question. Along the way it searches the vector store, walks the graph, fuses
-and reranks the candidates, folds in trust, and finally calls the language model. When an
-answer comes out wrong, the cause can lie in any one of these steps, and reading the final
-answer alone does not reveal which one failed. The pipeline therefore has to be monitored, so
-that each request can be opened up and inspected after it runs. Scattering manual log
-statements through the code is one way to do this, but it is slow to write and painful to
-debug when something breaks. A dedicated tracing tool was used instead, which helps not only
-with monitoring but also with later improvements.
-
-Several tools offer this kind of tracing, and Opik was chosen because it is open source and
-can be run on the own infrastructure of the project. This keeps the traces and their data
-inside the same environment as the rest of the system and does not send them to an outside
-service, which matters for enterprise material that should not leave the local setup. The
-application talks to Opik as a client and sends everything it records to a local server,
-where it is viewed in a dashboard. A small set of environment variables points the client at
-the server, names the project under which all traces are grouped, and sets the workspace.
-
-The three levels of recording introduced in the theory chapter map directly onto the way the
-system is used. A span is one function call of the pipeline, a trace is one question from
-entry to answer, and a thread is one session. A person usually asks several questions in one
-sitting, and each question runs the whole pipeline once, so every question becomes one trace
-and the traces of one conversation are grouped into one thread.
-
-The recording is done with a decorator. Placing it above a function tells Opik to capture
-that function as a span each time it runs, taking its inputs before it executes and its
-result and timing after. When one decorated function calls another, the inner span is nested
-inside the outer one, so the shape of the pipeline is rebuilt as a tree without any manual
-bookkeeping. The top of the tree is the whole request, recorded as `rag_pipeline`, and
-beneath it sit the retrieval and generation steps. Retrieval opens its own nested spans for
-the vector search, the graph traversal, the fusion and its union, the reranker and the
-recommended documents, so that the path of a question through the two legs is visible step
-by step.
-
-Where the automatic capture is not enough, two calls add more detail. One attaches step level
-detail to the current span, such as how many chunks each leg returned, together with the
-token usage and the estimated cost of a model call. The other attaches request level detail
-to the current trace, such as the final answer and the session identifier. The session
-identifier is a single value that is created once when a session opens and reused for every
-question in it, which is what files the separate traces under one conversation.
-
-Observability was not part of the baseline, which offered no way to trace or measure the
-pipeline. Adding it makes both the behaviour and the cost of each request transparent. This
-visibility is what allowed the retrieval approaches and the trust score to be understood and
-debugged while they were being built.
-
-=== Guidelines for Trustworthy Documents
-
-The trust score is only useful if the teams that write training material know what it rewards.
-For this reason the score is translated into a short set of writing guidelines. They follow
-directly from the way the score is built. The score does not check whether the information in
-a document is factually right. It estimates how reliable a document is from its content
-quality, its metadata and how well it aligns with the rest of the knowledge base. A document
-that follows the guidelines therefore has a higher chance of earning a good score.
-
-Because the prior carries a weight of 0.7 and the support score a weight of 0.3, the share of
-each part in the final score follows from the weights of the pillars. The content pillar
-contributes $0.7 dot.op 0.45 = 31.5%$, the three metadata pillars contribute
-$0.7 dot.op (0.25 + 0.15 + 0.15) = 38.5%$, and the support score contributes 30%. 
-@tab-guidelines lists the three parts and what each of them rewards.
-
-#figure(
-  [
-    #set text(size: 10pt)
-    #table(
-      columns: (1fr, 0.7fr, 3fr),
-      align: left + top,
-      inset: 6pt,
-      [*Part*], [*Share*], [*What it rewards*],
-      [Content], [31.5%],
-        [Specific details such as transaction codes, table names, program names, fields and
-        item types. A complete procedure with prerequisites, steps and outcome. Actionable
-        steps that say what to enter or click and why. A focused document with one task or
-        topic, free of filler and of descriptions of slide visuals.],
-      [Metadata], [38.5%],
-        [A known and authorised author and no blank or unknown author. A recent last
-        modified date, kept current by reviewing and saving the document regularly. A
-        structured, text based format, preferred over image only slides, so that the content
-        is machine readable.],
-      [Support], [30%],
-        [Standard and consistent terminology, so that the document links into the shared
-        knowledge graph. Facts that agree with other trusted documents. A document that
-        shares its key facts with the wider corpus and does not stand in isolation.],
-    )
-  ],
-  caption: [Writing guidelines derived from the three parts of the trust score and their share of the final score.],
-) <tab-guidelines>
-
-The guidelines for the support score deserve a note. Using the same codes and names as other
-official documents is what connects a document to the others through shared entities, and
-without such connections it keeps only its prior. Agreement with trusted documents raises the
-score, but as discussed above, agreement is only a proxy for correctness. The guidelines
-therefore ask authors to stay consistent with authoritative sources, and they do not ask them
-to copy the majority.
-// CONFIRM: your draft sentence on the support rule was cut off after "earn corroboration". I assumed that contradictory facts earn none.
